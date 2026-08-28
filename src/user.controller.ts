@@ -3,13 +3,13 @@ import {
     ValidationPipe, UsePipes, UseGuards, Injectable, CanActivate, ExecutionContext
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiHeaders, ApiProperty } from '@nestjs/swagger';
-import { UserDto } from './user.dto';
+import { UserDto, Role } from './user.dto';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { UserService } from './user.service';
 
 @Injectable()
-class AuthGuard implements CanActivate {
+export class AuthGuard implements CanActivate {
     canActivate(context: ExecutionContext): boolean {
         const request = context.switchToHttp().getRequest();
         return request.headers['authorization'] === 'secret-token';
@@ -17,8 +17,17 @@ class AuthGuard implements CanActivate {
 }
 
 class UserResponse {
+    @ApiProperty({ example: '1' })
+    id!: string;
+
     @ApiProperty({ example: 'Alice' })
     name!: string;
+
+    @ApiProperty({ example: Role.ADMIN })
+    role!: Role;
+
+    @ApiProperty({ example: '127.0.0.1' })
+    ip?: string;
 }
 
 @ApiTags('users')
@@ -33,7 +42,11 @@ export class UserController {
     @ApiResponse({ status: 200, type: UserResponse })
     @ApiBearerAuth()
     @ApiHeaders([{ name: 'x-custom-header', description: 'Custom header' }])
-    async getUser(@Param('id') id: string, @Query('role') role: string, @Headers() headers: any) {
+    async getUser(
+        @Param('id') id: string,
+        @Query('role') role: Role,
+        @Headers() headers: Record<string, any>
+    ) {
         const dto = plainToInstance(UserDto, { name: 'Demo', role });
         const errors = await validate(dto);
         if (errors.length > 0) {
