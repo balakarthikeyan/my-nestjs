@@ -9,9 +9,9 @@ export enum Role {
 export class UserDto {
     @ApiProperty({ example: 'Alice', description: 'The name of the user' })
     @IsString()
-    name: string;
+    name!: string;
 
     @ApiProperty({ enum: Role, example: Role.ADMIN, description: 'Role of the user' })
     @IsEnum(Role)
-    role: Role;
+    role!: Role;
 }

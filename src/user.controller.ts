@@ -18,7 +18,7 @@ class AuthGuard implements CanActivate {
 
 class UserResponse {
     @ApiProperty({ example: 'Alice' })
-    name: string;
+    name!: string;
 }
 
 @ApiTags('users')
