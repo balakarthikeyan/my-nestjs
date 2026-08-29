@@ -3,7 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import compression from 'compression';
-import bodyParser from 'body-parser';
+// import bodyParser from 'body-parser';
 import session from 'express-session';
 import RedisStore from 'connect-redis';
 import { createClient } from 'redis';
@@ -16,18 +16,20 @@ async function bootstrap() {
   });
 
   // Initialize Redis Client
-  const redisClient = createClient({ url: 'redis://localhost:6379' });
+  const redisClient = createClient({ url: process.env.REDIS_URL || 'redis://localhost:6379' });
   redisClient.connect().catch(console.error);
 
-  // Security & middleware
+  // Security & Middleware
   app.use(helmet());
   app.use(compression());
-  app.use(bodyParser.json());
+  // app.use(bodyParser.json());
   app.use(
     session({
-      secret: 'keyboard cat',
+      store: new RedisStore({ client: redisClient }),
+      secret: process.env.SESSION_SECRET || 'keyboard cat',
       resave: false,
       saveUninitialized: false,
+      cookie: { httpOnly: true, secure: process.env.NODE_ENV === 'production' },
     }),
   );
   app.use(
@@ -39,24 +41,16 @@ async function bootstrap() {
       },
     }),
   );
+
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
       whitelist: true,
+      forbidNonWhitelisted: true,
     }),
   );
 
-  // Pass real client to RedisStore
-  app.use(
-    session({
-      store: new RedisStore({ client: redisClient }),
-      secret: 'keyboard cat',
-      resave: false,
-      saveUninitialized: false,
-    }),
-  );
-
-  // 🔥 Swagger setup 
+  // Swagger Documentation Setup
   const config = new DocumentBuilder()
     .setTitle('NestJS Demo API')
     .setDescription('API documentation for demo project')

@@ -1,33 +1,17 @@
 import {
-    Controller, Get, Param, Query, Headers,
-    ValidationPipe, UsePipes, UseGuards, Injectable, CanActivate, ExecutionContext
+    Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, HttpCode, HttpStatus,
+    UseGuards, Injectable, CanActivate, ExecutionContext
 } from '@nestjs/common';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiHeaders, ApiProperty } from '@nestjs/swagger';
-import { UserDto, Role } from './user.dto';
-import { plainToInstance } from 'class-transformer';
-import { validate } from 'class-validator';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { UserService } from './user.service';
+import { CreateUserDto, UpdateUserDto, UserResponseDto } from './user.dto';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
     canActivate(context: ExecutionContext): boolean {
         const request = context.switchToHttp().getRequest();
-        return request.headers['authorization'] === 'secret-token';
+        return request.headers['authorization'] === 'Bearer secret-token';
     }
-}
-
-class UserResponse {
-    @ApiProperty({ example: '1' })
-    id!: string;
-
-    @ApiProperty({ example: 'Alice' })
-    name!: string;
-
-    @ApiProperty({ example: Role.ADMIN })
-    role!: Role;
-
-    @ApiProperty({ example: '127.0.0.1' })
-    ip?: string;
 }
 
 @ApiTags('users')
@@ -36,22 +20,42 @@ class UserResponse {
 export class UserController {
     constructor(private readonly userService: UserService) { }
 
+    @Post()
+    @ApiOperation({ summary: 'Create a new user' })
+    @ApiResponse({ status: 201, type: UserResponseDto })
+    async create(@Body() createUserDto: CreateUserDto) {
+        return this.userService.create(createUserDto);
+    }
+
+    @Get()
+    @ApiOperation({ summary: 'Get all users' })
+    @ApiResponse({ status: 200, type: [UserResponseDto] })
+    async findAll() {
+        return this.userService.findAll();
+    }
+
     @Get(':id')
-    @UsePipes(new ValidationPipe({ transform: true }))
     @ApiOperation({ summary: 'Get user by ID' })
-    @ApiResponse({ status: 200, type: UserResponse })
-    @ApiBearerAuth()
-    @ApiHeaders([{ name: 'x-custom-header', description: 'Custom header' }])
-    async getUser(
-        @Param('id') id: string,
-        @Query('role') role: Role,
-        @Headers() headers: Record<string, any>
+    @ApiResponse({ status: 200, type: UserResponseDto })
+    async findOne(@Param('id', ParseIntPipe) id: number) {
+        return this.userService.findOne(id);
+    }
+
+    @Patch(':id')
+    @ApiOperation({ summary: 'Update a user' })
+    @ApiResponse({ status: 200, type: UserResponseDto })
+    async update(
+        @Param('id', ParseIntPipe) id: number,
+        @Body() updateUserDto: UpdateUserDto,
     ) {
-        const dto = plainToInstance(UserDto, { name: 'Demo', role });
-        const errors = await validate(dto);
-        if (errors.length > 0) {
-            return { error: 'Validation failed', details: errors };
-        }
-        return { id, role, headers, ip: this.userService.getIp() };
+        return this.userService.update(id, updateUserDto);
+    }
+
+    @Delete(':id')
+    @HttpCode(HttpStatus.NO_CONTENT)
+    @ApiOperation({ summary: 'Delete a user' })
+    @ApiResponse({ status: 204, description: 'User deleted successfully' })
+    async remove(@Param('id', ParseIntPipe) id: number) {
+        return this.userService.remove(id);
     }
 }
